@@ -1,0 +1,10 @@
+{
+  "configId": "resposta_sms",
+  "attributes": {
+    "msisdn": "${msisdn}",
+    "texto_sms": "${text}",
+    "origem": "${shortNumber}",
+    "id_correlacao": "${correlationId}",
+    "data_requisicao": "${date}"
+  }
+}

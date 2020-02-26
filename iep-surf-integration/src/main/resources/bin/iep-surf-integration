@@ -1,0 +1,103 @@
+#!/bin/bash
+DIR="$(cd "`dirname $0`/.." && pwd)"
+JAVA_BIN="${JAVA_HOME:?"variable need be set to your Java install directory"}/bin/java"
+
+JVM_OPTS=""
+
+# Memory Options
+MAX_HEAP_SIZE="1024m"
+HEAP_NEWSIZE="200m"
+JVM_OPTS="$JVM_OPTS -Xms${MAX_HEAP_SIZE}"
+JVM_OPTS="$JVM_OPTS -Xmx${MAX_HEAP_SIZE}"
+JVM_OPTS="$JVM_OPTS -Xmn${HEAP_NEWSIZE}"
+JVM_OPTS="$JVM_OPTS -XX:+HeapDumpOnOutOfMemoryError"
+JVM_OPTS="$JVM_OPTS -XX:HeapDumpPath=${DIR}/iep-`date +%s`-pid$$.hprof"
+
+#Encoding
+JVM_OPTS="$JVM_OPTS -Dfile.encoding=UTF-8"
+
+#IPv4
+JVM_OPTS="$JVM_OPTS -Djava.net.preferIPv4Stack=true"
+
+#GC Tunning
+#Concurrent Mark and Sweep GC
+#JVM_OPTS="$JVM_OPTS -XX:+UseParNewGC"
+#JVM_OPTS="$JVM_OPTS -XX:+UseConcMarkSweepGC"
+#JVM_OPTS="$JVM_OPTS -XX:+CMSParallelRemarkEnabled"
+#JVM_OPTS="$JVM_OPTS -XX:SurvivorRatio=8"
+#JVM_OPTS="$JVM_OPTS -XX:MaxTenuringThreshold=1"
+#JVM_OPTS="$JVM_OPTS -XX:CMSInitiatingOccupancyFraction=75"
+#JVM_OPTS="$JVM_OPTS -XX:+UseCMSInitiatingOccupancyOnly"
+#JVM_OPTS="$JVM_OPTS -XX:+UseTLAB"
+#JVM_OPTS="$JVM_OPTS -XX:+UseG1GC"
+#G1 GC
+JVM_OPTS="$JVM_OPTS -XX:G1RSetUpdatingPauseTimePercent=5"
+JVM_OPTS="$JVM_OPTS -XX:InitiatingHeapOccupancyPercent=70"
+JVM_OPTS="$JVM_OPTS -XX:ParallelGCThreads=8"
+JVM_OPTS="$JVM_OPTS -XX:ConcGCThreads=8"
+
+
+#App Home
+JVM_OPTS="$JVM_OPTS  -Dapp.home=${DIR}"
+
+#For Debug
+# JVM_OPTS="$JVM_OPTS -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8484"
+
+
+#ClassPath
+CLASSPATH="${DIR}/lib/*:${DIR}/modules/*:${DIR}/config/:${DIR}/templates/"
+
+
+MAINCLASS="com.inspiring.surf.integration.server.IntegrationServer"
+
+if [[ "$#" -lt 1 ]]; then
+	echo "Usage: $0 {start|stop}"
+	exit 1
+fi
+
+case $1 in
+	start )
+                pidfile="$DIR/var/run/pid"
+                loginfo="${DIR}/var/log/stdout.log"
+                logerr="${DIR}/var/log/stderr.log"
+
+                if [[ -e ${pidfile} && `pgrep -F ${pidfile}|wc -l` -gt 0 ]]; then
+                	echo "Already running with PID `cat ${pidfile}`" >&2
+                	exit 1
+                fi
+
+                nohup $JAVA_BIN $JVM_OPTS -cp "${CLASSPATH}" $MAINCLASS 1> ${loginfo} 2> ${logerr} &
+
+                if [[ -z "$!" ]]; then
+                	echo "Cannot start. Check the logs in ${logerr} ." >&2
+                	exit 1
+                fi
+
+                apppid=$!
+                echo "${apppid}" > "${pidfile}"
+
+                tail -F $logerr $loginfo &
+                tailpid=$!
+                sleep 8
+                kill $tailpid & wait $tailpid 2> /dev/null
+
+                if [[ -e ${pidfile} && `pgrep -F ${pidfile}|wc -l` -gt 0 ]]; then
+                        echo "Started with PID [${apppid}]"
+                fi
+		;;
+	stop )
+		pidfile="$DIR/var/run/pid"
+
+                if [[ -e ${pidfile} && `pgrep -F ${pidfile}|wc -l` -gt 0 ]]; then
+                	pkill -F ${pidfile}
+                	echo "Stoped"
+                else
+                	echo "Not running"
+                fi
+	        ;;
+	* )
+		echo "Unknow option: $1" >&2
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
