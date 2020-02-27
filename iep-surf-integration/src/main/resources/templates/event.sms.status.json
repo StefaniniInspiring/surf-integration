@@ -1,0 +1,10 @@
+{
+  "configId": "status_sms",
+  "attributes": {
+    "msisdn": "${msisdn}",
+    "status": "${status}",
+    "text": "${text}",
+    "id_correlacao": "${correlationId}",
+    "data_requisicao": "${date}"
+  }
+}

@@ -2,16 +2,8 @@ package com.inspiring.surf.integration.service.sms;
 
 import java.util.List;
 import java.util.Map;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
 
 import com.inspiring.surf.integration.broker.BrokerMessageConfig;
 import com.inspiring.surf.integration.util.MapUtils;
@@ -21,13 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import static com.inspiring.surf.integration.util.MapUtils.createMap;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.MediaType.APPLICATION_XML;
-import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
-import static javax.ws.rs.core.MediaType.TEXT_XML;
+import static javax.ws.rs.core.MediaType.*;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
-import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
 @Path("sms")
@@ -35,52 +22,57 @@ public class SmsInputServiceRest {
 
     private static final Logger log = LoggerFactory.getLogger(SmsInputServiceRest.class);
     private static final Logger audit = LoggerFactory.getLogger("integration.audit.request");
-    private static final String queueName = "surf.sms.input";
+    public static final String queueNameResponse = "surf.sms.response";
+    public static final String queueNameStatus = "surf.sms.status";
     private @Autowired BrokerMessageConfig broker;
 
-    @GET
+    @POST
     @Path("response")
     @Produces({TEXT_PLAIN})
-    public Response smsInput(@Context HttpHeaders headers,
-                             @Context UriInfo uriInfo) {
+    @Consumes(WILDCARD)
+    public Response smsResponse(@Context HttpHeaders headers,
+                             @Context UriInfo uriInfo,
+                                @FormParam("celular") String msisdn,
+                                @FormParam("mensagem") String text,
+                                @FormParam("lashortnumber") String shortNumber,
+                                @FormParam("seunum") String correlationId,
+                                @FormParam("datastatus") String date) {
 
         MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-        log.debug("SMS Input - Query Parameters: {}", queryParameters);
 
-        String text = getParameterValue("Texto", queryParameters);
-        if (isBlank(text)) {
-            return Response.status(400).build();
-        }
-        String msisdn = getParameterValue("Celular", queryParameters);
-        if (isBlank(msisdn)) {
-            return Response.status(400).build();
-        }
-        String shortNumber = getParameterValue("ShortCode", queryParameters);
-        shortNumber = defaultIfBlank(shortNumber, "");
-
-        String correlationId = getParameterValue("Seunum", queryParameters);
-        correlationId = defaultIfBlank(correlationId, "");
-
-        String date = getParameterValue("Data", queryParameters);
-        date = defaultIfBlank(date, "");
+        log.info("SMS Response - Celular: {}, ShortNumber {}, SeuNum: {}, Texto: {}, Data: {}", msisdn, shortNumber, correlationId, text, date);
 
         Map<String, Object> request = createMap("text", text, "msisdn", msisdn, "shortNumber", shortNumber, "correlationId", correlationId, "date", date);
 
-        audit.info("type={}|{}", queueName, MapUtils.toString(request, "|"));
+        audit.info("type={}|{}", queueNameResponse, MapUtils.toString(request, "|"));
 
-        broker.sendMessage(queueName, request);
+        broker.sendMessage(queueNameResponse, request);
 
         return Response.ok("OK").build();
     }
 
+
     @POST
     @Path("status")
-    @Consumes({APPLICATION_XML, APPLICATION_JSON, TEXT_XML})
-    public Response smsCallback(@Context HttpHeaders headers,
-                                @Context UriInfo uriInfo) {
+    @Produces(TEXT_PLAIN)
+    @Consumes(WILDCARD)
+    public Response smsStatusWithForm(@Context HttpHeaders headers,
+                              @Context UriInfo uriInfo,
+                              @FormParam("celular") String msisdn,
+                              @FormParam("descricaostatus") String text,
+                              @FormParam("status") String status,
+                              @FormParam("SeuNum") String correlationId,
+                              @FormParam("datastatus") String date) {
 
         MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-        log.debug("SMS Callback - Query Parameters: {}, MSEResponse: {}", queryParameters);
+
+        log.info("SMS Status -  Celular: {}, Status {}, SeuNum: {}, Desc: {}, Data: {}", msisdn, status, correlationId, text, date);
+
+        Map<String, Object> request = createMap("text", text, "msisdn", msisdn, "status", status, "text", text, "correlationId", correlationId, "date", date);
+
+        audit.info("type={}|{}", queueNameResponse, MapUtils.toString(request, "|"));
+
+        broker.sendMessage(queueNameStatus, request);
 
         return Response.ok().build();
     }
