@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import static com.inspiring.surf.integration.util.MapUtils.createMap;
 import static javax.ws.rs.core.MediaType.*;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 @Path("sms")
@@ -38,7 +39,9 @@ public class SmsInputServiceRest {
                                 @FormParam("seunum") String correlationId,
                                 @FormParam("datastatus") String date) {
 
-        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+        if (isNotBlank(msisdn)) {
+            msisdn = msisdn.substring(2);
+        }
 
         log.info("SMS Response - Celular: {}, ShortNumber {}, SeuNum: {}, Texto: {}, Data: {}", msisdn, shortNumber, correlationId, text, date);
 
@@ -64,9 +67,12 @@ public class SmsInputServiceRest {
                               @FormParam("SeuNum") String correlationId,
                               @FormParam("datastatus") String date) {
 
-        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+        if (isNotBlank(msisdn)) {
+            msisdn = msisdn.substring(2);
+        }
 
         log.info("SMS Status -  Celular: {}, Status {}, SeuNum: {}, Desc: {}, Data: {}", msisdn, status, correlationId, text, date);
+
 
         Map<String, Object> request = createMap("text", text, "msisdn", msisdn, "status", status, "text", text, "correlationId", correlationId, "date", date);
 
