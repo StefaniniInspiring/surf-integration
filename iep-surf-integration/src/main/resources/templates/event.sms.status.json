@@ -2,7 +2,7 @@
   "configId": "status_sms",
   "attributes": {
     "status": "${status}",
-    "text": "${text}",
+    "descricao": "${text}",
     "id_correlacao": "${correlationId}",
     "data_requisicao": "${date}"
   },
